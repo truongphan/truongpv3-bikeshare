@@ -18,7 +18,7 @@ def get_filters():
     """
     print('Hello! Let\'s explore some US bikeshare data!')
     # get user input for city (chicago, new york city, washington). HINT: Use a while loop to handle invalid inputs
-    city = input('ENTER THE CITY: ')
+    city = input('ENTER THE CITY: ').lower()
     while city not in ['chicago', 'new_york_city', 'washington']:
         city = input("CHOOSE BETWEEN chicago, new_york_city OR washington: ").lower()
 
@@ -208,6 +208,34 @@ def raw_data(df):
         print(df.head(x))
 
 
+def display_data(df):
+    while True:
+        response = ['yes', 'no']
+        choice = input("Would you like to view individual trip data (5 entries)? Type 'yes' or 'no'\n").lower()
+        if choice in response:
+            if choice == 'yes':
+                start = 0
+                end = 5
+                data = df.iloc[start:end, :9]
+                print(data)
+            break
+        else:
+            print("Please enter a valid response")
+    if choice == 'yes':
+        while True:
+            choice_2 = input("Would you like to view more trip data? Type 'yes' or 'no'\n").lower()
+            if choice_2 in response:
+                if choice_2 == 'yes':
+                    start += 5
+                    end += 5
+                    data = df.iloc[start:end, :9]
+                    print(data)
+                else:
+                    break
+            else:
+                print("Please enter a valid response")
+
+
 def main():
     while True:
         city, month, day = get_filters()
@@ -217,7 +245,8 @@ def main():
         station_stats(df)
         trip_duration_stats(df)
         user_stats(df)
-        raw_data(df)
+        #raw_data(df)
+        display_data(df)
 
         restart = input('\nWould you like to restart? Enter yes or no.\n')
         if restart.lower() != 'yes':
