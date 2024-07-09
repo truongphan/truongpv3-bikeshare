@@ -1,6 +1,7 @@
 import time
 import pandas as pd
 import numpy as np
+import calendar as cal
 
 CITY_DATA = {'chicago': 'chicago.csv',
              'new york city': 'new_york_city.csv',
@@ -47,63 +48,74 @@ def load_data(city, month, day):
     Returns:
         df - Pandas DataFrame containing city data filtered by month and day
     """
-    # load intended file into data frame
-    df = pd.read_csv('{}.csv'.format(city))
+    # 1. read the dataframe of the selected city, using the pandas package
+    df = pd.read_csv(CITY_DATA[city])
 
-    # convert columns od Start Time and End Time into date format yyyy-mm-dd
+    # 2. convert Start Time to a datetime object, for subsequent extraction of
+    # month and weekday (and later, hour)
     df['Start Time'] = pd.to_datetime(df['Start Time'])
-    df['End Time'] = pd.to_datetime(df['End Time'])
 
-    # extract month from Start Time into new column called month
-    df['month'] = df['Start Time'].dt.month
+    # 3. extraction of month and day
+    df['Month'] = df['Start Time'].dt.month
+    df['Weekday'] = df['Start Time'].dt.weekday
 
-    # filter by month
-
+    # 4. filtering of dataset, based on selections
     if month != 'all':
-        # use the index of the months list to get the corresponding int
         months = ['january', 'february', 'march', 'april', 'may', 'june']
         month = months.index(month) + 1
+        df = df[df['Month'] == month]
 
-        # filter by month to create the new dataframe
-        df = df[df['month'] == month]
-
-    # extract day from Start Time into new column called month
-    df['day_of_week'] = df['Start Time'].dt.day_name
-    # filter by day of week if applicable
     if day != 'all':
-        # filter by day of week to create the new dataframe
-        df = df[df['day_of_week'] == day.title()]
+        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        day = days.index(day)
+        df = df[df['Weekday'] == day]
 
     return df
 
 
-def time_stats(df):
+def time_stats(df, city, month, day):
     """Displays statistics on the most frequent times of travel."""
 
     print('\nCalculating The Most Frequent Times of Travel...\n')
     start_time = time.time()
 
     # display the most common month
-    if df['month'].empty:
-        print("No data available to determine the most common month.")
+    # 1. list of full month names from calendar
+    list(cal.month_name)
+
+    # 2. determine most common month
+    ind_month = df['Month'].value_counts().idxmax()
+
+    # 3. print full name of most common month
+    if month != 'all':
+        print('You have selected ', month.title(), ', so, unsurprisingly, the most common ' +
+              'month in', city.title(), 'is', cal.month_name[ind_month], '\n')
+
     else:
-        most_common_month = df['month'].value_counts().idxmax()
-        print("The most common month is: ", most_common_month)
+        print('The most common month in ', city.title(), ' is',
+              cal.month_name[ind_month], '.\n')
 
     # display the most common day of week
-    if df['day_of_week'].empty:
-        print("No data available to determine the most common day of week.")
+    # 1. list of full weekday names from calendar
+    list(cal.day_name)
+
+    # 2. determine most common weekday
+    ind_day = df['Weekday'].value_counts().idxmax()
+
+    # 3. print full name of most common weekday
+    if day != 'all':
+        print('You have selected', day.title(), 'so, unsurprisingly, the most common ' +
+              'day of the week in', city.title(), 'is', cal.day_name[ind_day], '\n')
     else:
-        most_common_day_of_week = df['day_of_week'].value_counts().idxmax()
-        print("The most common day of week is: ", most_common_day_of_week)
+        print('The most common day of the week is', cal.day_name[ind_day], '\n')
 
     # display the most common start hour
-    if df['Start Time'].empty:
-        print("No data available to determine the most common start hour.")
-    else:
-        df['hour'] = df['Start Time'].dt.hour
-        most_common_start_hour = df['hour'].value_counts().idxmax()
-        print("The most common start hour is: ", most_common_start_hour)
+    # 1. extract the hour part from Start Time and save in new variable
+    df['Start Hour'] = df['Start Time'].dt.hour
+
+    # 2. print most common start hour
+    print('The most common start hour for your selection is',
+          df['Start Hour'].value_counts().idxmax(), 'o\'clock.\n')
 
     print("\nThis took %s seconds." % (time.time() - start_time))
     print('-' * 40)
@@ -116,25 +128,20 @@ def station_stats(df):
     start_time = time.time()
 
     # display most commonly used start station
-    if df['Start Station'].empty:
-        print("No data available to determine the most common start station.")
-    else:
-        most_common_start_station = df['Start Station'].value_counts().idxmax()
-        print("The most common start station is: ", most_common_start_station)
+    print('The most common start station for your selection is',
+          df['Start Station'].value_counts().idxmax(), '.\n')
 
     # display most commonly used end station
-    if df['End Station'].empty:
-        print("No data available to determine the most common end station.")
-    else:
-        most_common_end_station = df['End Station'].value_counts().idxmax()
-        print("The most common end station is: ", most_common_end_station)
+    print('The most common end station for your selection is',
+          df['End Station'].value_counts().idxmax(), '.\n')
 
     # display most frequent combination of start station and end station trip
-    if df.empty or 'Start Station' not in df.columns or 'End Station' not in df.columns:
-        print("No data available to determine the most common trip.")
-    else:
-        most_common_trip = df.groupby(['Start Station', 'End Station']).size().idxmax()
-        print("The most common trip is from {} to {}".format(most_common_trip[0], most_common_trip[1]))
+    # 1. combine start and end stations into new column
+    df['Station Combination'] = df['Start Station'] + ' (start) and ' + df['End Station'] + ' (end).'
+
+    # 2. print station combination
+    print('The most common station combination for your selection is ',
+          df['Station Combination'].value_counts().idxmax(), '\n')
 
     print("\nThis took %s seconds." % (time.time() - start_time))
     print('-' * 40)
@@ -147,93 +154,115 @@ def trip_duration_stats(df):
     start_time = time.time()
 
     # display total travel time
-    total_duration = df['Trip Duration'].sum() / 3600.0
-    print("total travel time in hours is: ", total_duration)
+    # 1. calculate total travel time in seconds with .sum()
+    trip_sum_sec = df['Trip Duration'].sum()
+
+    # 2. convert total travel time to hours and round with zero decimal points
+    trip_sum_h = round(trip_sum_sec / 60 / 60, 0)
+
+    # 3. print total travel time
+    print('The total travel time for your selection is', trip_sum_h, 'hours.\n')
 
     # display mean travel time
-    mean_duration = df['Trip Duration'].mean() / 3600.0
-    print("mean travel time in hours is: ", mean_duration)
+    # 1. calculate mean travel time in seconds with .mean()
+    trip_mean_sec = df['Trip Duration'].mean()
+
+    # 2. convert total travel time to minutes and round with zero decimal points
+    trip_mean_min = round(trip_mean_sec / 60, 0)
+
+    # 3. display mean travel time either in minutes if below one hour, or in hours if above
+    #    and print mean travel time
+    if trip_mean_min < 60:
+        print('The mean travel time for your selection is', trip_mean_min, 'minutes.\n')
+    else:
+        trip_mean_h = round(trip_mean_min / 60, 1)
+        print('The mean travel time for your selection is', trip_mean_h, 'hours.\n')
 
     print("\nThis took %s seconds." % (time.time() - start_time))
     print('-' * 40)
 
 
-def user_stats(df):
+def user_stats(df, city):
     """Displays statistics on bikeshare users."""
 
     print('\nCalculating User Stats...\n')
     start_time = time.time()
 
     # Display counts of user types
-    if 'User Type' in df.columns:
-        user_types = df['User Type'].value_counts()
-        print("Counts of user types:\n", user_types)
-    else:
-        print("No 'User Type' column in the data.")
+    # 1. convert user type to an NumPy array for subseqent counts
+    usertypes = df['User Type'].values
+
+    # 2. count the occurences of the different user types
+    ct_subscriber = (usertypes == 'Subscriber').sum()
+    ct_customer = (usertypes == 'Customer').sum()
+
+    # 3. print user type counts
+    print('The number of subscribers in', city.title(), 'is:', ct_subscriber, '\n')
+    print('The number of customers in', city.title(), 'is:', ct_customer, '\n')
 
     # Display counts of gender
-    if 'Gender' in df.columns:
-        gender_counts = df['Gender'].value_counts()
-        print("Counts of gender:\n", gender_counts)
-    else:
-        print("No 'Gender' column in the data.")
-
     # Display earliest, most recent, and most common year of birth
-    if 'Birth Year' in df.columns:
-        birth_years = df['Birth Year'].dropna()
-        if birth_years.empty:
-            print("No available data for 'Birth Year'.")
-        else:
-            earliest_year_of_birth = int(birth_years.min())
-            most_recent_year_of_birth = int(birth_years.max())
-            most_common_year_of_birth = int(birth_years.mode()[0])
+    # gender and year of birth are missing from the Washington dataset
+    if city.title() != 'Washington':
+        # counts of gender
+        # 1. convert gender to an NumPy array for subseqent counts
+        gender = df['Gender'].values
 
-            print("Earliest year of birth:", earliest_year_of_birth)
-            print("Most recent year of birth:", most_recent_year_of_birth)
-            print("Most common year of birth:", most_common_year_of_birth)
+        # 2. count the occurences of the different user types
+        ct_male = (gender == 'Male').sum()
+        ct_female = (gender == 'Female').sum()
+
+        # 3. print counts
+        print('The number of male users in', city.title(), 'is:', ct_male, '\n')
+        print('The number of female users in', city.title(), 'is:', ct_female, '\n')
+
+        # year of birth
+        # 1. convert gender to an NumPy array for subseqent statistics
+        birthyear = df['Birth Year'].values
+
+        # 2. get unique birth years and exclude NaNs
+        birthyear_unique = np.unique(birthyear[~np.isnan(birthyear)])
+
+        # 3. the latest birth year is the highest / maximum number
+        latest_birthyear = birthyear_unique.max()
+
+        # 4. the earliest birth year is the lowest / minimum number
+        earliest_birthyear = birthyear_unique.min()
+
+        # 5. print latest and earliest birth year
+        print('The most recent birth year of users in', city.title(), 'is:',
+              latest_birthyear, '\n')
+        print('The earliest birth year of users in', city.title(), 'is:',
+              earliest_birthyear, '\n')
+
+        # 6. display most common birth year
+        print('The most common birth year of users in', city.title(), 'is:',
+              df['Birth Year'].value_counts().idxmax(), '\n')
+
     else:
-        print("No 'Birth Year' column in the data.")
+        # print message if Washington was chosen as city
+        print('Sorry. Gender and birth year information are not available for Washington!')
 
     print("\nThis took %s seconds." % (time.time() - start_time))
     print('-' * 40)
 
 
 def raw_data(df):
-    """Displays the data due filtration.
-    5 rows will add in each press"""
-    print('press enter to see row data, press no to skip')
-    x = 0
-    while input() != 'no':
-        x = x + 5
-        print(df.head(x))
-
-
-def display_data(df):
+    """ Displays 5 lines of raw data at a time when yes is selected."""
+    # define index i, start at line 1
+    i = 1
     while True:
-        response = ['yes', 'no']
-        choice = input("Would you like to view individual trip data (5 entries)? Type 'yes' or 'no'\n").lower()
-        if choice in response:
-            if choice == 'yes':
-                start = 0
-                end = 5
-                data = df.iloc[start:end, :9]
-                print(data)
-            break
+        rawdata = input('\nWould you like to see 5 lines of raw data? Enter yes or no.\n')
+        if rawdata.lower() == 'yes':
+            # print current 5 lines
+            print(df[i:i + 5])
+
+            # increase index i by 5 to print next 5 lines in new execution
+            i = i + 5
+
         else:
-            print("Please enter a valid response")
-    if choice == 'yes':
-        while True:
-            choice_2 = input("Would you like to view more trip data? Type 'yes' or 'no'\n").lower()
-            if choice_2 in response:
-                if choice_2 == 'yes':
-                    start += 5
-                    end += 5
-                    data = df.iloc[start:end, :9]
-                    print(data)
-                else:
-                    break
-            else:
-                print("Please enter a valid response")
+            # break when no is selected
+            break
 
 
 def main():
@@ -241,12 +270,15 @@ def main():
         city, month, day = get_filters()
         df = load_data(city, month, day)
 
-        time_stats(df)
+        # arguments adapted to run function properly
+        time_stats(df, city, month, day)
         station_stats(df)
         trip_duration_stats(df)
-        user_stats(df)
-        #raw_data(df)
-        display_data(df)
+        # arguments adapted to run function properly
+        user_stats(df, city)
+
+        # additonal function to display raw data
+        raw_data(df)
 
         restart = input('\nWould you like to restart? Enter yes or no.\n')
         if restart.lower() != 'yes':
